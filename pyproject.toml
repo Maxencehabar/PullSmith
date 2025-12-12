@@ -1,0 +1,31 @@
+[project]
+name = "ai-dev-agent"
+version = "0.1.0"
+description = "FastAPI orchestrator and runner for Trello/GitHub Codex agent"
+authors = [{ name = "Your Team" }]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.23.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.24.0",
+    "gitpython>=3.1.40",
+    "openai>=1.13.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "httpx[http2]",
+]
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

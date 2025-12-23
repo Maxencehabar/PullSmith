@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     github_app_id: str = ""
     github_private_key: str = ""
     github_pat: str = ""
+    vercel_token: str = ""
+    vercel_team_id: str = ""
+    vercel_project_map: dict[str, str] = {
+        "youdy-front": "youdy-front-max",
+        "youdy-back": "youdy-back-max",
+    }
     trello_api_key: str = ""
     trello_token: str = ""
     trello_key: str = ""
@@ -41,6 +47,27 @@ class Settings(BaseSettings):
             parts = [item.strip() for item in value.split(",")]
             return [item for item in parts if item]
         return []
+
+    @field_validator("vercel_project_map", mode="before")
+    @classmethod
+    def _parse_vercel_project_map(cls, value):
+        if value is None:
+            return {}
+        if isinstance(value, dict):
+            return {str(k).strip(): str(v).strip() for k, v in value.items() if str(k).strip() and str(v).strip()}
+        if isinstance(value, str):
+            mapping: dict[str, str] = {}
+            pairs = [item.strip() for item in value.split(",") if item.strip()]
+            for pair in pairs:
+                if "=" not in pair:
+                    continue
+                repo, project = pair.split("=", 1)
+                repo = repo.strip()
+                project = project.strip()
+                if repo and project:
+                    mapping[repo] = project
+            return mapping
+        return {}
 
 
 @lru_cache(maxsize=1)

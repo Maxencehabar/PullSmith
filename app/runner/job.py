@@ -18,6 +18,7 @@ from app.services.git_service import (
     push_branch,
 )
 from app.services.trello_service import add_comment, get_list_id_by_name, move_card_to_list, set_status_label
+from app.services.vercel_service import get_latest_deployment_url
 from app.services.llm import propose_branch_and_commit
 from app.domain.policies import normalize_branch_name, sanitize_branch_name
 
@@ -45,6 +46,17 @@ def _deploy_functions(repo_path: Path) -> None:
         cwd=repo_path,
         check=True,
     )
+
+
+def _get_head_sha(repo_path: Path) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo_path,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return result.stdout.strip()
 
 
 def _extract_instructions(description: str) -> str:
@@ -105,6 +117,8 @@ async def run_job(job: Any) -> bool:
             f"feat/{sanitize_branch_name(raw_id)}"
         )[:50]
         pr_links: list[tuple[str, str]] = []
+        branch_links: list[tuple[str, str]] = []
+        deploy_targets: list[tuple[str, str, str, str]] = []
         for repo_url, repo_path, repo_branch in zip(repo_urls, repo_paths, repo_branches, strict=False):
             branch_name = base_branch_name
             if branch_exists_remote(repo_path, branch_name):
@@ -117,13 +131,18 @@ async def run_job(job: Any) -> bool:
             if not commit_all(repo_path, commit_msg):
                 logger.info("No changes to commit for %s in %s", raw_id, repo_url)
                 continue
+            commit_sha = _get_head_sha(repo_path)
             push_branch(repo_path, branch_name, token=settings.github_pat)
             pr_url = create_pull_request(repo_url, branch_name, repo_branch, pr_title, pr_body, token=settings.github_pat)
             logger.info("PR created: %s", pr_url)
             repo_name = repo_url.rstrip("/").split("/")[-1]
             pr_links.append((repo_name, pr_url))
+            branch_links.append((repo_name, branch_name))
             if repo_name == "youdy-functions":
                 _deploy_functions(repo_path)
+            project_name = settings.vercel_project_map.get(repo_name, "")
+            if project_name:
+                deploy_targets.append((repo_name, project_name, branch_name, commit_sha))
         if not pr_links:
             logger.info("No changes to commit for %s", raw_id)
             return
@@ -137,9 +156,22 @@ async def run_job(job: Any) -> bool:
                     set_status_label(task.task_id, "SUBMITTED", board_id)
             except Exception:
                 logger.warning("Could not set Trello status to SUBMITTED for %s", task.task_id)
-            comment_lines = [f"{repo_name}: {pr_url}" for repo_name, pr_url in pr_links]
-            comment_body = "PRs created:\n" + "\n".join(comment_lines)
+            pr_lines = [f"{repo_name}: {pr_url}" for repo_name, pr_url in pr_links]
+            branch_lines = [f"{repo_name}: {branch_name}" for repo_name, branch_name in branch_links]
+            comment_body = "Branches:\n" + "\n".join(branch_lines) + "\n\nPRs created:\n" + "\n".join(pr_lines)
             add_comment(task.task_id, comment_body)
+
+            deploy_links: list[tuple[str, str]] = []
+            for repo_name, project_name, branch_name, commit_sha in deploy_targets:
+                try:
+                    deploy_url = get_latest_deployment_url(project_name, branch_name, commit_sha=commit_sha)
+                    if deploy_url:
+                        deploy_links.append((repo_name, deploy_url))
+                except Exception:
+                    logger.warning("Failed to fetch Vercel deployment for %s", repo_name)
+            if deploy_links:
+                deploy_lines = [f"{repo_name}: {deploy_url}" for repo_name, deploy_url in deploy_links]
+                add_comment(task.task_id, "Vercel deployments:\n" + "\n".join(deploy_lines))
         success = True
         if job_obj:
             job_obj.state = JobState.succeeded if success else JobState.failed

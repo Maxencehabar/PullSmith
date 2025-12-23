@@ -5,3 +5,4 @@ pydantic-settings>=2.0.0
 httpx>=0.24.0
 gitpython>=3.1.40
 openai>=1.13.3
+requests>=2.31.0

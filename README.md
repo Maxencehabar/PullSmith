@@ -10,6 +10,8 @@ pip install -r requirements.txt  # or: pip install -e .[dev]
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 Codex CLI must be installed and logged in (`codex exec` is invoked by the runner).
+If you need Trello to reach your local server, expose it with a tunnel (e.g. `ngrok http 8000`)
+and use the HTTPS URL as the webhook `callbackURL` ending with `/webhooks/trello/`.
 
 ## Required env (.env)
 - `TRELLO_KEY`, `TRELLO_TOKEN`, `TRELLO_BOARD_ID`

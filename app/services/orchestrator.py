@@ -88,6 +88,14 @@ def _extract_repo(card: dict[str, Any]) -> str:
     return ""
 
 
+def _extract_repos(card: dict[str, Any]) -> list[str]:
+    settings = get_settings()
+    if settings.repo_urls:
+        return settings.repo_urls
+    url = _extract_repo(card)
+    return [url] if url else []
+
+
 def _extract_checklist(card: dict[str, Any]) -> list[str]:
     checklists = card.get("checklists") or []
     items: list[str] = []
@@ -140,17 +148,18 @@ async def enqueue_task(payload: dict[str, Any]) -> AiDevTask:
     if settings.trello_board_id and has_status_label(card.get("id", ""), "WORKING", settings.trello_board_id):
         logger.info("Skipping card %s: already WORKING", card.get("id", ""))
         return None
+    repos = _extract_repos(card)
     task = AiDevTask(
         task_id=card.get("id", ""),
         title=card.get("name", ""),
         description=card.get("desc", ""),
-        repo=_extract_repo(card),
+        repos=repos,
         base_branch="main",
         acceptance_criteria=_extract_checklist(card),
     )
     print("task", task)
-    if not task.repo:
-        logger.warning("Skipping card %s: no repo URL in attachment or description", task.task_id)
+    if not task.repos:
+        logger.warning("Skipping card %s: no repos configured or found", task.task_id)
         return None
     success = await run_job(task)
     if success:

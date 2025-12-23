@@ -24,7 +24,11 @@ def _run(cmd: list[str], cwd: Path) -> str:
     return result.stdout.strip()
 
 
-def ensure_git_config(repo_path: Path, user: str = "codex-bot", email: str = "codex@example.com") -> None:
+def ensure_git_config(
+    repo_path: Path,
+    user: str = "youdyApprentis",
+    email: str = "youdyApprentis@users.noreply.github.com",
+) -> None:
     _run(["git", "config", "user.name", user], cwd=repo_path)
     _run(["git", "config", "user.email", email], cwd=repo_path)
 

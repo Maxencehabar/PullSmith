@@ -34,6 +34,6 @@ class AiDevTask(BaseModel):
     task_id: str
     title: str
     description: str
-    repo: str
+    repos: list[str] = Field(default_factory=list)
     base_branch: str = "main"
     acceptance_criteria: list[str] = Field(default_factory=list)

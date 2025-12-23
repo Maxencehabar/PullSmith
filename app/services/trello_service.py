@@ -8,7 +8,7 @@ from app.core.config import get_settings
 from app.domain.models import Task
 
 logger = logging.getLogger(__name__)
-STATUS_NAMES = {"PENDING", "WORKING", "SUBMITTED"}
+STATUS_NAMES = {"PENDING", "WORKING", "SUBMITTED", "ERROR"}
 
 
 def parse_trello_card(payload: dict[str, Any]) -> Task:
